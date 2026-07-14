@@ -1,0 +1,21 @@
+<servicio nombre="libra_pulse" descripcion="Stack de observabilidad todo-en-uno (Grafana, Loki, Prometheus, Tempo, Alloy). Recibe métricas, logs y trazas vía OpenTelemetry. Acceso a dashboards en puerto 80. Permite añadir dashboards Grafana personalizados en JSON a través del volumen /apps/resources." id_galileo="GAL_TELEMETRY" version="1.0.59" path_base="/" build_number="25ede1b7a887a48438afbe5816aa28add7dc3eb3" build_time="20260714145530" mapeo_puertos="true" check="false" permite_ha="false" recursos="true">
+    <imagen>
+        <build t="libra_pulse:1.0.59" remote="https://libraupdate.libracloud.com/auto/galileo/otros_servicios/libra_pulse/Dockerfile.tar"/>
+    </imagen>
+    <contenedor>
+        <puerto docker_interno="80" docker_externo="60080"/>
+        <memoria reservation="80" limit="200"/>
+        <volume carpeta_interna="/apps/logs" carpeta_externa="/apps/logs"/>
+        <volume carpeta_interna="/data" carpeta_externa="/apps/data"/>
+        <restart>always</restart>
+        <env>
+            <DOCKERIZADO>true</DOCKERIZADO>
+        </env>
+        <archivos>
+            <archivo nombre="dashboards.yaml" descripcion="Configuración de provisioning de Grafana. Define la carpeta y opciones de carga automática de los dashboards JSON incluidos en este directorio" obligatorio="N" carpeta_interna="/etc/grafana/provisioning/dashboards/" plantilla="https://libraupdate.libracloud.com/auto/galileo/recursos_docker/libra_pulse/assets/grafana/dashboards.yaml"/>
+            <archivo nombre="galileo-overview.json" descripcion="Dashboard de visión general de los servicios Galileo. Muestra logs en tiempo real, volumen de errores y warnings por servicio, y número de servicios activos. Fuente de datos: Loki" obligatorio="N" carpeta_interna="/etc/grafana/provisioning/dashboards/" plantilla="https://libraupdate.libracloud.com/auto/galileo/recursos_docker/libra_pulse/assets/grafana/galileo-overview.json"/>
+            <archivo nombre="galileo-metrics.json" descripcion="Dashboard de métricas JVM y HTTP de los servicios Galileo instrumentados con el agente OpenTelemetry Java. Incluye uso de heap, threads, GC, tasa de peticiones y latencias p50/p95/p99. Fuente de datos: Prometheus." obligatorio="N" carpeta_interna="/etc/grafana/provisioning/dashboards/" plantilla="https://libraupdate.libracloud.com/auto/galileo/recursos_docker/libra_pulse/assets/grafana/galileo-metrics.json"/>
+            <archivo nombre="b2x-metrics.json" descripcion="Dashboard dhe Métricas de portales web " obligatorio="N" carpeta_interna="/etc/grafana/provisioning/dashboards/" plantilla="https://libraupdate.libracloud.com/auto/galileo/recursos_docker/libra_pulse/assets/grafana/b2x-metrics.json"/>
+        </archivos>
+    </contenedor>
+</servicio>
