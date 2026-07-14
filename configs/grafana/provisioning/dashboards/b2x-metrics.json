@@ -1,0 +1,864 @@
+{
+  "__inputs": [],
+  "__requires": [
+    {"type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0"},
+    {"type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0"},
+    {"type": "datasource", "id": "loki", "name": "Loki", "version": "1.0.0"},
+    {"type": "datasource", "id": "tempo", "name": "Tempo", "version": "1.0.0"},
+    {"type": "panel", "id": "stat", "name": "Stat", "version": ""},
+    {"type": "panel", "id": "timeseries", "name": "Time series", "version": ""},
+    {"type": "panel", "id": "table", "name": "Table", "version": ""},
+    {"type": "panel", "id": "barchart", "name": "Bar chart", "version": ""},
+    {"type": "panel", "id": "piechart", "name": "Pie chart", "version": ""},
+    {"type": "panel", "id": "logs", "name": "Logs", "version": ""},
+    {"type": "panel", "id": "traces", "name": "Traces", "version": ""}
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Observabilidad del Portal Galileo: Django backend + React frontend. Metricas HTTP, Web Vitals, trazas distribuidas, logs y deteccion de cuellos de botella.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": true,
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": ["galileo"],
+      "targetBlank": true,
+      "title": "Otros dashboards Galileo",
+      "type": "dashboards"
+    }
+  ],
+  "panels": [
+
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "id": 400,
+      "title": "Portal Galileo — Resumen",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 50},
+            {"color": "red", "value": 200}
+          ]},
+          "unit": "reqps",
+          "mappings": [{"options": {"match": "null", "result": {"text": "0"}}, "type": "special"}]
+        }
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 1},
+      "id": 1,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "textMode": "auto", "orientation": "auto"},
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "sum(rate(http_server_duration_count{service_name=\"portal-galileo\"}[5m]))",
+        "refId": "A"
+      }],
+      "title": "Request Rate",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "orange", "value": 500},
+            {"color": "red", "value": 2000}
+          ]},
+          "unit": "ms",
+          "mappings": [{"options": {"match": "null", "result": {"text": "N/A"}}, "type": "special"}]
+        }
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 1},
+      "id": 2,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "textMode": "auto", "orientation": "auto"},
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "histogram_quantile(0.95, sum(rate(http_server_duration_bucket{service_name=\"portal-galileo\"}[5m])) by (le))",
+        "refId": "A"
+      }],
+      "title": "Latencia p95",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "orange", "value": 0.01},
+            {"color": "red", "value": 0.05}
+          ]},
+          "unit": "percentunit",
+          "mappings": [{"options": {"match": "null", "result": {"text": "0%"}}, "type": "special"}]
+        }
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 1},
+      "id": 3,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "textMode": "auto", "orientation": "auto"},
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "sum(rate(http_server_duration_count{service_name=\"portal-galileo\", http_status_code=~\"5..\"}[5m])) / sum(rate(http_server_duration_count{service_name=\"portal-galileo\"}[5m]))",
+        "refId": "A"
+      }],
+      "title": "Tasa Error 5xx",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 50},
+            {"color": "red", "value": 200}
+          ]},
+          "unit": "short",
+          "mappings": [{"options": {"match": "null", "result": {"text": "0"}}, "type": "special"}]
+        }
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 1},
+      "id": 4,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "textMode": "auto", "orientation": "auto"},
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "sum(http_server_active_requests{service_name=\"portal-galileo\"})",
+        "refId": "A"
+      }],
+      "title": "Peticiones Activas",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"fixedColor": "red", "mode": "fixed"},
+          "unit": "short",
+          "mappings": [{"options": {"match": "null", "result": {"text": "0"}}, "type": "special"}]
+        }
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 1},
+      "id": 5,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "textMode": "auto", "orientation": "auto"},
+      "targets": [{
+        "datasource": {"type": "loki", "uid": "loki"},
+        "expr": "sum(count_over_time({service_name=\"portal-galileo\"} |= `ERROR`[$__range]))",
+        "refId": "A",
+        "instant": true
+      }],
+      "title": "Errores en Logs",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 2500},
+            {"color": "orange", "value": 4000},
+            {"color": "red", "value": 6000}
+          ]},
+          "unit": "ms",
+          "mappings": [{"options": {"match": "null", "result": {"text": "N/A"}}, "type": "special"}]
+        }
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 1},
+      "id": 6,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "textMode": "auto", "orientation": "auto"},
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "histogram_quantile(0.95, sum(rate(traces_spanmetrics_latency_bucket{service=\"portal-galileo-frontend\", span_name=~\"web-vital\\\\.LCP\"}[30m])) by (le))",
+        "refId": "A"
+      }],
+      "title": "LCP p95 (Frontend)",
+      "description": "Largest Contentful Paint — rendimiento percibido por el usuario. Bueno <2.5s, Necesita mejora 2.5-4s, Pobre >4s",
+      "type": "stat"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5},
+      "id": 401,
+      "title": "Django Backend — Trafico HTTP",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "reqps", "custom": {"lineWidth": 2, "fillOpacity": 20, "stacking": {"mode": "normal"}, "showPoints": "never"}},
+        "overrides": [
+          {"matcher": {"id": "byRegexp", "options": ".*2xx.*"}, "properties": [{"id": "color", "value": {"fixedColor": "green", "mode": "fixed"}}]},
+          {"matcher": {"id": "byRegexp", "options": ".*3xx.*"}, "properties": [{"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}]},
+          {"matcher": {"id": "byRegexp", "options": ".*4xx.*"}, "properties": [{"id": "color", "value": {"fixedColor": "orange", "mode": "fixed"}}]},
+          {"matcher": {"id": "byRegexp", "options": ".*5xx.*"}, "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]}
+        ]
+      },
+      "gridPos": {"h": 8, "w": 16, "x": 0, "y": 6},
+      "id": 10,
+      "options": {"tooltip": {"mode": "multi", "sort": "desc"}, "legend": {"displayMode": "table", "placement": "right", "calcs": ["sum", "lastNotNull"]}},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "expr": "sum(rate(http_server_duration_count{service_name=\"portal-galileo\", http_status_code=~\"2..\"}[5m]))",
+          "legendFormat": "2xx OK",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "expr": "sum(rate(http_server_duration_count{service_name=\"portal-galileo\", http_status_code=~\"3..\"}[5m]))",
+          "legendFormat": "3xx Redirect",
+          "refId": "B"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "expr": "sum(rate(http_server_duration_count{service_name=\"portal-galileo\", http_status_code=~\"4..\"}[5m]))",
+          "legendFormat": "4xx Client Error",
+          "refId": "C"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "expr": "sum(rate(http_server_duration_count{service_name=\"portal-galileo\", http_status_code=~\"5..\"}[5m]))",
+          "legendFormat": "5xx Server Error",
+          "refId": "D"
+        }
+      ],
+      "title": "Request Rate por Status Code",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "short", "color": {"mode": "palette-classic"}},
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "2xx"}, "properties": [{"id": "color", "value": {"fixedColor": "green", "mode": "fixed"}}]},
+          {"matcher": {"id": "byName", "options": "3xx"}, "properties": [{"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}]},
+          {"matcher": {"id": "byName", "options": "4xx"}, "properties": [{"id": "color", "value": {"fixedColor": "orange", "mode": "fixed"}}]},
+          {"matcher": {"id": "byName", "options": "5xx"}, "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]}
+        ]
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 6},
+      "id": 11,
+      "options": {"reduceOptions": {"calcs": ["sum"]}, "legend": {"displayMode": "list", "placement": "right"}, "tooltip": {"mode": "single"}, "pieType": "donut"},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "expr": "round(sum(increase(http_server_duration_count{service_name=\"portal-galileo\", http_status_code=~\"2..\"}[$__range])))",
+          "legendFormat": "2xx",
+          "refId": "A",
+          "instant": true
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "expr": "round(sum(increase(http_server_duration_count{service_name=\"portal-galileo\", http_status_code=~\"3..\"}[$__range])))",
+          "legendFormat": "3xx",
+          "refId": "B",
+          "instant": true
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "expr": "round(sum(increase(http_server_duration_count{service_name=\"portal-galileo\", http_status_code=~\"4..\"}[$__range])))",
+          "legendFormat": "4xx",
+          "refId": "C",
+          "instant": true
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "expr": "round(sum(increase(http_server_duration_count{service_name=\"portal-galileo\", http_status_code=~\"5..\"}[$__range])))",
+          "legendFormat": "5xx",
+          "refId": "D",
+          "instant": true
+        }
+      ],
+      "title": "Distribucion Status Codes (rango)",
+      "type": "piechart"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "reqps", "custom": {"lineWidth": 2, "fillOpacity": 15, "showPoints": "never"}},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+      "id": 12,
+      "options": {"tooltip": {"mode": "multi", "sort": "desc"}, "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["sum", "lastNotNull"]}},
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "sum by (http_target) (rate(http_server_duration_count{service_name=\"portal-galileo\"}[5m]))",
+        "legendFormat": "{{http_target}}",
+        "refId": "A"
+      }],
+      "title": "Request Rate por Endpoint",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "short", "custom": {"lineWidth": 2, "fillOpacity": 15, "showPoints": "never"}},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+      "id": 13,
+      "options": {"tooltip": {"mode": "multi", "sort": "desc"}, "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"]}},
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "http_server_active_requests{service_name=\"portal-galileo\"}",
+        "legendFormat": "Peticiones activas",
+        "refId": "A"
+      }],
+      "title": "Peticiones Activas Concurrentes",
+      "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 22},
+      "id": 402,
+      "title": "Django Backend — Latencia & Cuellos de Botella",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "ms", "custom": {"lineWidth": 2, "fillOpacity": 10, "showPoints": "never"}},
+        "overrides": [
+          {"matcher": {"id": "byRegexp", "options": ".*p50.*"}, "properties": [{"id": "custom.lineWidth", "value": 1}, {"id": "custom.lineStyle", "value": {"fill": "dash", "dash": [10, 5]}}]},
+          {"matcher": {"id": "byRegexp", "options": ".*p99.*"}, "properties": [{"id": "custom.lineWidth", "value": 3}]}
+        ]
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 23},
+      "id": 20,
+      "options": {"tooltip": {"mode": "multi", "sort": "desc"}, "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"]}},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_server_duration_bucket{service_name=\"portal-galileo\"}[5m])))",
+          "legendFormat": "Global — p50",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_duration_bucket{service_name=\"portal-galileo\"}[5m])))",
+          "legendFormat": "Global — p95",
+          "refId": "B"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_duration_bucket{service_name=\"portal-galileo\"}[5m])))",
+          "legendFormat": "Global — p99",
+          "refId": "C"
+        }
+      ],
+      "title": "Latencia Global (p50 / p95 / p99)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "ms", "custom": {"lineWidth": 2, "fillOpacity": 10, "showPoints": "never"}},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 23},
+      "id": 21,
+      "options": {"tooltip": {"mode": "multi", "sort": "desc"}, "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"]}},
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "histogram_quantile(0.95, sum by (http_target, le) (rate(http_server_duration_bucket{service_name=\"portal-galileo\"}[5m])))",
+        "legendFormat": "{{http_target}}",
+        "refId": "A"
+      }],
+      "title": "Latencia p95 por Endpoint",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "filterable": true},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 500},
+            {"color": "orange", "value": 1000},
+            {"color": "red", "value": 3000}
+          ]}
+        },
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "Endpoint"}, "properties": [{"id": "custom.width", "value": 350}]},
+          {"matcher": {"id": "byName", "options": "Metodo"}, "properties": [{"id": "custom.width", "value": 80}]},
+          {
+            "matcher": {"id": "byName", "options": "Latencia p95"},
+            "properties": [
+              {"id": "unit", "value": "ms"},
+              {"id": "decimals", "value": 0},
+              {"id": "custom.cellOptions", "value": {"type": "color-background", "mode": "gradient"}},
+              {"id": "thresholds", "value": {"mode": "absolute", "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 500},
+                {"color": "orange", "value": 1000},
+                {"color": "red", "value": 3000}
+              ]}}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "Peticiones/s"},
+            "properties": [{"id": "unit", "value": "reqps"}, {"id": "decimals", "value": 2}]
+          }
+        ]
+      },
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 31},
+      "id": 22,
+      "options": {
+        "showHeader": true,
+        "sortBy": [{"displayName": "Latencia p95", "desc": true}],
+        "footer": {"show": false}
+      },
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "topk(10, histogram_quantile(0.95, sum by (http_target, http_method, le) (rate(http_server_duration_bucket{service_name=\"portal-galileo\"}[5m]))))",
+        "refId": "A",
+        "instant": true,
+        "format": "table"
+      }],
+      "transformations": [
+        {
+          "id": "filterByValue",
+          "options": {
+            "type": "include",
+            "match": "any",
+            "filters": [{"fieldName": "Value", "config": {"id": "greaterOrEqual", "options": {"value": 0}}}]
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {"Time": true, "__name__": true, "le": true, "service_name": true},
+            "renameByName": {"http_target": "Endpoint", "http_method": "Metodo", "Value": "Latencia p95"}
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {"sort": [{"field": "Latencia p95", "desc": true}]}
+        }
+      ],
+      "title": "Top 10 Endpoints Mas Lentos (Django p95)",
+      "description": "Verde <500ms, amarillo 500ms-1s, naranja 1-3s, rojo >3s",
+      "type": "table"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 41},
+      "id": 403,
+      "title": "Django Backend — Llamadas externas (DB, HTTP saliente)",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "ms", "custom": {"lineWidth": 2, "fillOpacity": 10, "showPoints": "never"}},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 42},
+      "id": 25,
+      "options": {"tooltip": {"mode": "multi", "sort": "desc"}, "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"]}},
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "histogram_quantile(0.95, sum by (db_system, le) (rate(traces_spanmetrics_latency_bucket{service=\"portal-galileo\", db_system!=\"\"}[5m])))",
+        "legendFormat": "DB ({{db_system}}) — p95",
+        "refId": "A"
+      }],
+      "title": "Latencia Queries DB (p95 via span metrics)",
+      "description": "Latencia de las queries a PostgreSQL instrumentadas por psycopg2. Generado por Tempo span-metrics.",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "ms", "custom": {"lineWidth": 2, "fillOpacity": 10, "showPoints": "never"}},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 42},
+      "id": 26,
+      "options": {"tooltip": {"mode": "multi", "sort": "desc"}, "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"]}},
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "histogram_quantile(0.95, sum by (http_url, le) (rate(traces_spanmetrics_latency_bucket{service=\"portal-galileo\", http_url!=\"\"}[5m])))",
+        "legendFormat": "{{http_url}} — p95",
+        "refId": "A"
+      }],
+      "title": "Latencia HTTP Saliente (requests/urllib3 p95)",
+      "description": "Latencia de las llamadas HTTP que Django hace a servicios Galileo u otros backends.",
+      "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 50},
+      "id": 404,
+      "title": "React Frontend — Web Vitals & Rendimiento",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 2500},
+            {"color": "red", "value": 4000}
+          ]},
+          "unit": "ms",
+          "mappings": [{"options": {"match": "null", "result": {"text": "N/A"}}, "type": "special"}]
+        }
+      },
+      "gridPos": {"h": 5, "w": 5, "x": 0, "y": 51},
+      "id": 30,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "textMode": "value_and_name", "orientation": "auto"},
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "histogram_quantile(0.75, sum(rate(traces_spanmetrics_latency_bucket{service=\"portal-galileo-frontend\", span_name=\"web-vital.LCP\"}[30m])) by (le)) * 1000",
+        "refId": "A"
+      }],
+      "title": "LCP",
+      "description": "Largest Contentful Paint: cuanto tarda en renderizar el contenido principal. Bueno <2.5s, Pobre >4s",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 1800},
+            {"color": "red", "value": 3000}
+          ]},
+          "unit": "ms",
+          "mappings": [{"options": {"match": "null", "result": {"text": "N/A"}}, "type": "special"}]
+        }
+      },
+      "gridPos": {"h": 5, "w": 5, "x": 5, "y": 51},
+      "id": 31,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "textMode": "value_and_name", "orientation": "auto"},
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "histogram_quantile(0.75, sum(rate(traces_spanmetrics_latency_bucket{service=\"portal-galileo-frontend\", span_name=\"web-vital.FCP\"}[30m])) by (le)) * 1000",
+        "refId": "A"
+      }],
+      "title": "FCP",
+      "description": "First Contentful Paint: cuanto tarda en mostrar algo en pantalla. Bueno <1.8s, Pobre >3s",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 800},
+            {"color": "red", "value": 1800}
+          ]},
+          "unit": "ms",
+          "mappings": [{"options": {"match": "null", "result": {"text": "N/A"}}, "type": "special"}]
+        }
+      },
+      "gridPos": {"h": 5, "w": 5, "x": 10, "y": 51},
+      "id": 32,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "textMode": "value_and_name", "orientation": "auto"},
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "histogram_quantile(0.75, sum(rate(traces_spanmetrics_latency_bucket{service=\"portal-galileo-frontend\", span_name=\"web-vital.TTFB\"}[30m])) by (le)) * 1000",
+        "refId": "A"
+      }],
+      "title": "TTFB",
+      "description": "Time to First Byte: cuanto tarda el servidor en responder. Bueno <800ms, Pobre >1.8s",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 100},
+            {"color": "red", "value": 300}
+          ]},
+          "unit": "ms",
+          "mappings": [{"options": {"match": "null", "result": {"text": "N/A"}}, "type": "special"}]
+        }
+      },
+      "gridPos": {"h": 5, "w": 5, "x": 15, "y": 51},
+      "id": 33,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "textMode": "value_and_name", "orientation": "auto"},
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "histogram_quantile(0.75, sum(rate(traces_spanmetrics_latency_bucket{service=\"portal-galileo-frontend\", span_name=\"web-vital.INP\"}[30m])) by (le)) * 1000",
+        "refId": "A"
+      }],
+      "title": "INP",
+      "description": "Interaction to Next Paint: responsividad a interacciones del usuario. Bueno <200ms, Pobre >500ms",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 0.1},
+            {"color": "red", "value": 0.25}
+          ]},
+          "unit": "short",
+          "decimals": 3,
+          "mappings": [{"options": {"match": "null", "result": {"text": "N/A"}}, "type": "special"}]
+        }
+      },
+      "gridPos": {"h": 5, "w": 4, "x": 20, "y": 51},
+      "id": 34,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "textMode": "value_and_name", "orientation": "auto"},
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "histogram_quantile(0.75, sum(rate(traces_spanmetrics_latency_bucket{service=\"portal-galileo-frontend\", span_name=\"web-vital.CLS\"}[30m])) by (le))",
+        "refId": "A"
+      }],
+      "title": "CLS",
+      "description": "Cumulative Layout Shift: estabilidad visual. Bueno <0.1, Pobre >0.25",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "reqps", "custom": {"lineWidth": 2, "fillOpacity": 15, "showPoints": "never"}},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 56},
+      "id": 35,
+      "options": {"tooltip": {"mode": "multi", "sort": "desc"}, "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["sum", "lastNotNull"]}},
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "sum by (span_name) (rate(traces_spanmetrics_calls_total{service=\"portal-galileo-frontend\", span_name=~\"HTTP.*|GET.*|POST.*|PUT.*|DELETE.*|PATCH.*\"}[5m]))",
+        "legendFormat": "{{span_name}}",
+        "refId": "A"
+      }],
+      "title": "Llamadas API desde el Frontend (fetch/XHR)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "short", "custom": {"lineWidth": 2, "fillOpacity": 15, "showPoints": "never"}, "color": {"fixedColor": "red", "mode": "fixed"}},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 56},
+      "id": 36,
+      "options": {"tooltip": {"mode": "multi", "sort": "desc"}, "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["sum"]}},
+      "targets": [{
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "expr": "sum(rate(traces_spanmetrics_calls_total{service=\"portal-galileo-frontend\", span_name=\"react.error\", status_code=\"STATUS_CODE_ERROR\"}[5m]))",
+        "legendFormat": "Errores React",
+        "refId": "A"
+      }],
+      "title": "Errores React (Error Boundary)",
+      "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 64},
+      "id": 405,
+      "title": "Trazas Distribuidas (Frontend → Django → DB/Galileo)",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "tempo", "uid": "tempo"},
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 65},
+      "id": 40,
+      "options": {},
+      "targets": [{
+        "datasource": {"type": "tempo", "uid": "tempo"},
+        "queryType": "traceqlSearch",
+        "query": "{resource.service.name=~\"portal-galileo|portal-galileo-frontend\" && status=error}",
+        "limit": 20,
+        "filters": [
+          {"id": "service-name", "tag": "resource.service.name", "operator": "=~", "value": ["portal-galileo", "portal-galileo-frontend"], "scope": "resource"},
+          {"id": "status", "tag": "status", "operator": "=", "value": ["error"], "scope": "intrinsic"}
+        ],
+        "refId": "A"
+      }],
+      "title": "Trazas con Error (portal backend + frontend)",
+      "description": "Trazas que contienen al menos un span con status=error. Haz clic en una traza para ver la cascada completa frontend→backend→DB.",
+      "type": "traces"
+    },
+    {
+      "datasource": {"type": "tempo", "uid": "tempo"},
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 75},
+      "id": 41,
+      "options": {},
+      "targets": [{
+        "datasource": {"type": "tempo", "uid": "tempo"},
+        "queryType": "traceqlSearch",
+        "query": "{resource.service.name=\"portal-galileo\" && span.http.target!=\"\" && duration > 1s}",
+        "limit": 20,
+        "filters": [
+          {"id": "service-name", "tag": "resource.service.name", "operator": "=", "value": ["portal-galileo"], "scope": "resource"},
+          {"id": "min-duration", "tag": "duration", "operator": ">", "value": ["1s"], "scope": "intrinsic"}
+        ],
+        "refId": "A"
+      }],
+      "title": "Trazas Lentas (>1s) — Django Backend",
+      "description": "Peticiones que tardaron mas de 1 segundo. Haz clic para investigar en que span se gasta el tiempo (DB, HTTP saliente, procesamiento).",
+      "type": "traces"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 85},
+      "id": 406,
+      "title": "Logs del Portal (Django)",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {
+        "defaults": {
+          "custom": {"drawStyle": "bars", "fillOpacity": 30, "lineWidth": 1, "showPoints": "never"},
+          "unit": "short",
+          "color": {"mode": "palette-classic"}
+        },
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "ERROR"}, "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]},
+          {"matcher": {"id": "byName", "options": "WARNING"}, "properties": [{"id": "color", "value": {"fixedColor": "orange", "mode": "fixed"}}]},
+          {"matcher": {"id": "byName", "options": "INFO"}, "properties": [{"id": "color", "value": {"fixedColor": "green", "mode": "fixed"}}]},
+          {"matcher": {"id": "byName", "options": "DEBUG"}, "properties": [{"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}]}
+        ]
+      },
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 86},
+      "id": 50,
+      "options": {
+        "legend": {"calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "targets": [{
+        "datasource": {"type": "loki", "uid": "loki"},
+        "expr": "sum by (level) (count_over_time({service_name=\"portal-galileo\"}[$__interval]))",
+        "legendFormat": "{{level}}",
+        "refId": "A"
+      }],
+      "title": "Volumen de Logs por Nivel",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "gridPos": {"h": 14, "w": 24, "x": 0, "y": 92},
+      "id": 51,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      },
+      "targets": [{
+        "datasource": {"type": "loki", "uid": "loki"},
+        "expr": "{service_name=\"portal-galileo\"} |~ `$log_level` |= `$log_search`",
+        "refId": "A"
+      }],
+      "title": "Logs en Tiempo Real — Portal Galileo",
+      "type": "logs"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 106},
+      "id": 52,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      },
+      "targets": [{
+        "datasource": {"type": "loki", "uid": "loki"},
+        "expr": "{service_name=\"portal-galileo\"} |= `ERROR`",
+        "refId": "A"
+      }],
+      "title": "Solo Errores",
+      "type": "logs"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["galileo", "portal", "django", "react"],
+  "templating": {
+    "list": [
+      {
+        "current": {"selected": false, "text": "", "value": ""},
+        "hide": 0,
+        "label": "Filtro nivel log",
+        "name": "log_level",
+        "options": [
+          {"selected": true, "text": "", "value": ""},
+          {"text": "ERROR", "value": "ERROR"},
+          {"text": "WARNING", "value": "WARNING"},
+          {"text": "INFO", "value": "INFO"},
+          {"text": "DEBUG", "value": "DEBUG"}
+        ],
+        "query": "ERROR,WARNING,INFO,DEBUG",
+        "type": "custom",
+        "includeAll": false,
+        "multi": false
+      },
+      {
+        "current": {"selected": false, "text": "", "value": ""},
+        "hide": 0,
+        "label": "Buscar en logs",
+        "name": "log_search",
+        "options": [{"selected": true, "text": "", "value": ""}],
+        "query": "",
+        "type": "textbox"
+      }
+    ]
+  },
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Portal Galileo — Django + React",
+  "uid": "portal-galileo-obs",
+  "version": 1
+}

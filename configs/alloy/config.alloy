@@ -1,0 +1,202 @@
+// =============================================================================
+// Galileo Observabilidad — Grafana Alloy Configuration
+// =============================================================================
+// Pipeline de telemetría unificado:
+//   1. Receptor OTel (trazas + métricas + logs) ← servicios Galileo con Java agent
+//   2. Pipeline A: logs de aplicación   (gal_*.log excl. *_req.log) → Loki
+//   3. Pipeline B: logs HTTP request    (*_req.log)                  → Loki
+//   4. Auto-monitorización Alloy → Prometheus
+// =============================================================================
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. Receptor OTel — recibe trazas, métricas y logs de los servicios Java
+//    Los servicios deben configurar:
+//      OTEL_EXPORTER_OTLP_ENDPOINT=http://<host_observabilidad>:4318
+// ─────────────────────────────────────────────────────────────────────────────
+otelcol.receiver.otlp "galileo" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+  output {
+    traces  = [otelcol.exporter.otlp.tempo.input]
+    metrics = [otelcol.exporter.prometheus.galileo.input]
+    logs    = [otelcol.exporter.loki.galileo.input]
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. Exportador de trazas → Tempo
+// ─────────────────────────────────────────────────────────────────────────────
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "localhost:14317"
+    tls {
+      insecure = true
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. Exportador de métricas OTel → Prometheus (via remote_write)
+// ─────────────────────────────────────────────────────────────────────────────
+otelcol.exporter.prometheus "galileo" {
+  forward_to = [prometheus.relabel.add_service_name.receiver]
+  add_metric_suffixes = false
+  resource_to_telemetry_conversion = true
+}
+
+prometheus.relabel "add_service_name" {
+  forward_to = [prometheus.remote_write.default.receiver]
+  rule {
+    source_labels = ["job"]
+    target_label  = "service_name"
+  }
+}
+
+prometheus.remote_write "default" {
+  endpoint {
+    url = "http://localhost:9090/api/v1/write"
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. Exportador de logs OTel → Loki (para logs enviados via OTel agent)
+// ─────────────────────────────────────────────────────────────────────────────
+otelcol.exporter.loki "galileo" {
+  forward_to = [loki.write.default.receiver]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5a. Pipeline A: logs de aplicación
+//     Patrón: /var/log/galileo/gal_*.log  (excluye *_req.log — ver Pipeline B)
+//     Labels: job="galileo-app", service=<nombre_fichero>, level=DEBUG|INFO|...
+// ─────────────────────────────────────────────────────────────────────────────
+local.file_match "galileo_app_logs" {
+  path_targets = [{
+    __path__ = "/apps/logs/*/gal_*.log",
+    job      = "galileo-app",
+  }]
+  sync_period = "5s"
+}
+
+loki.source.file "galileo_app_files" {
+  targets               = local.file_match.galileo_app_logs.targets
+  forward_to            = [loki.process.extract_app_service.receiver]
+  tail_from_end = true
+}
+
+// Extrae service desde nombre de fichero y level desde el contenido del log
+loki.process "extract_app_service" {
+  stage.match {
+    selector = "{job=\"galileo-app\"}"
+    pipeline_name = "drop_req_logs"
+    stage.regex {
+      expression = "(?P<is_req>_req\\.log$)"
+      source     = "filename"
+    }
+    stage.drop {
+      expression   = ".+"
+      source       = "is_req"
+      drop_counter_reason = "request_log_in_app_pipeline"
+    }
+  }
+  stage.regex {
+    expression = "/(?P<service>[^/]+?)\\.log$"
+    source     = "filename"
+  }
+  stage.labels {
+    values = {
+      service = "",
+    }
+  }
+  stage.regex {
+    expression = "\\s+(?P<level>DEBUG|INFO|WARN|WARNING|ERROR|FATAL)\\s+"
+  }
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
+  forward_to = [loki.write.default.receiver]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5b. Pipeline B: logs HTTP request
+//     Patrón: /var/log/galileo/*_req.log
+//     Labels: job="galileo-request", service=<nombre_sin_sufijo_req>, method=GET|POST|..., status_code=200|404|...
+// ─────────────────────────────────────────────────────────────────────────────
+local.file_match "galileo_req_logs" {
+  path_targets = [{
+    __path__ = "/apps/logs/*/*_req.log",
+    job      = "galileo-request",
+  }]
+  sync_period = "5s"
+}
+
+loki.source.file "galileo_req_files" {
+  targets               = local.file_match.galileo_req_logs.targets
+  forward_to            = [loki.process.extract_req_service.receiver]
+  tail_from_end = true
+}
+
+loki.process "extract_req_service" {
+  stage.regex {
+    expression = "/(?P<service>[^/]+?)_req\\.log$"
+    source     = "filename"
+  }
+  stage.labels {
+    values = {
+      service = "",
+    }
+  }
+  stage.regex {
+    expression = "\"(?P<method>GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\\s+[^\"]+\"\\s+(?P<status_code>\\d{3})"
+  }
+  stage.labels {
+    values = {
+      method      = "",
+      status_code = "",
+    }
+  }
+  forward_to = [loki.write.default.receiver]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. Escritura a Loki
+// ─────────────────────────────────────────────────────────────────────────────
+loki.write "default" {
+  endpoint {
+    url = "http://localhost:3100/loki/api/v1/push"
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. Auto-monitorización de Alloy → Prometheus
+// ─────────────────────────────────────────────────────────────────────────────
+prometheus.exporter.self "alloy_self" {}
+
+prometheus.scrape "alloy_self_scrape" {
+  targets         = prometheus.exporter.self.alloy_self.targets
+  forward_to      = [prometheus.remote_write.default.receiver]
+  scrape_interval = "30s"
+  job_name        = "alloy"
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. Métricas del host — prometheus.exporter.unix (node_exporter integrado)
+//    En Docker Linux, /proc/meminfo, /proc/stat, /proc/diskstats y
+//    /proc/net/dev no están namespaciados → reflejan el host real.
+// ─────────────────────────────────────────────────────────────────────────────
+prometheus.exporter.unix "host" {
+  set_collectors = ["meminfo", "cpu", "loadavg", "filesystem", "diskstats", "netdev"]
+}
+
+prometheus.scrape "host_metrics" {
+  targets         = prometheus.exporter.unix.host.targets
+  forward_to      = [prometheus.remote_write.default.receiver]
+  scrape_interval = "15s"
+  job_name        = "node"
+}
