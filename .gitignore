@@ -1,0 +1,9 @@
+# Artefactos generados por el Action — no commitear
+Dockerfile.tar
+libra_pulse.zip
+
+# Build local — no commitear
+Dockerfile.local
+
+# Configuración local de Claude Code
+.claude/
