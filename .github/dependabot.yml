@@ -1,0 +1,32 @@
+# Actualizaciones automáticas de dependencias.
+# Dependabot lee este fichero de la rama por defecto (master): hasta que beta se
+# promueva a master no empieza a funcionar. Las PR se abren contra beta, que es
+# donde se desarrolla.
+version: 2
+updates:
+  # Imágenes base del Dockerfile (Grafana, Loki, Prometheus, Tempo, Alloy, Ubuntu).
+  # OJO con Grafana: el Dockerfile modifica con sed el JS minificado (logo, título,
+  # enlaces) y, si el texto cambia, el sed no falla: se pierde el branding en
+  # silencio. Revisar esas PR a mano antes de mergear. Para un major que no se
+  # vaya a adoptar: comentar "@dependabot ignore this major version" en la PR.
+  - package-ecosystem: "docker"
+    directory: "/"
+    target-branch: "beta"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Acciones de GitHub de los workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "beta"
+    schedule:
+      interval: "weekly"
+    groups:
+      acciones:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(ci)"
